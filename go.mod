@@ -1,3 +1,3 @@
-module go-test
+module my-gemini-app
 
-go 1.25.3
+go 1.25.0
