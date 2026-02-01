@@ -39,6 +39,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		http.Error(w, "API Error", 500)
+		fmt.Println("სიახლეები ვერ მოიძებნა.")
 		return
 	}
 	defer resp.Body.Close()
