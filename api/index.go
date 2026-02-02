@@ -19,11 +19,12 @@ type GeminiResponse struct {
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	apiKey := "AIzaSyBXQt6-_j7l_Zma4WAlkGXN4or5s-tV4mU"
-	apiURL := "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey
+	apiKey := "AIzaSyAtDTdQxHijv2dGEMS1dybqrIghkIqruFU"
+	apiURL := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey
 
-	prompt := "მოიძიე და ქართულად შეაჯამე ბოლო 1 საათის სიახლეები ევროპის რეგიონიდან. გამოიყენე პუნქტები."
+	prompt := "მოიძიე და ქართულად შეაჯამე ბოლო 1 საათის სიახლეები ევროპიდან. გამოიყენე პუნქტები (bullet points)."
 
+	// სინტაქსურად გამართული JSON სტრუქტურა
 	jsonData := map[string]interface{}{
 		"contents": []interface{}{
 			map[string]interface{}{
@@ -32,31 +33,50 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 				},
 			},
 		},
+		"tools": []interface{}{
+			map[string]interface{}{
+				"google_search": map[string]interface{}{},
+			},
+		},
 	}
 
-	jsonBytes, _ := json.Marshal(jsonData)
+	jsonBytes, err := json.Marshal(jsonData)
+	if err != nil {
+		http.Error(w, "JSON Marshal Error", 500)
+		return
+	}
+
 	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		http.Error(w, "API Error", 500)
-		fmt.Println("სიახლეები ვერ მოიძებნა.")
+		http.Error(w, "Network Error", 500)
 		return
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("API Error: %s\n", string(body))
+		http.Error(w, "API returned error: "+resp.Status, resp.StatusCode)
+		return
+	}
+
 	var geminiResp GeminiResponse
-	json.Unmarshal(body, &geminiResp)
+	if err := json.Unmarshal(body, &geminiResp); err != nil {
+		http.Error(w, "JSON Unmarshal Error", 500)
+		return
+	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, "<body style='background:#f0f2f5; font-family:sans-serif; padding:20px;'>")
+	fmt.Fprintf(w, "<div style='max-width:800px; margin:auto; background:white; padding:30px; border-radius:12px;'>")
 	fmt.Fprintf(w, "<h1 style='color:#1a73e8;'>🇪🇺 ევროპის სიახლეები</h1>")
 
-	if len(geminiResp.Candidates) > 0 {
+	if len(geminiResp.Candidates) > 0 && len(geminiResp.Candidates[0].Content.Parts) > 0 {
 		txt := geminiResp.Candidates[0].Content.Parts[0].Text
-		fmt.Fprintf(w, "<div style='background:white; padding:20px; border-radius:10px;'>%s</div>", txt)
+		fmt.Fprintf(w, "<div style='white-space: pre-wrap; font-size: 16px; line-height: 1.6;'>%s</div>", txt)
 	} else {
-		fmt.Fprintf(w, "სიახლეები ვერ მოიძებნა.")
-		fmt.Println("სიახლეები ვერ მოიძებნა.")
+		fmt.Fprintf(w, "<p>სიახლეები ვერ მოიძებნა.</p>")
 	}
-	fmt.Fprintf(w, "</body>")
+	fmt.Fprintf(w, "</div></body>")
 }
