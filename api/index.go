@@ -19,7 +19,7 @@ type GeminiResponse struct {
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	apiKey := "AIzaSyAtDTdQxHijv2dGEMS1dybqrIghkIqruFU"
+	apiKey := os.Getenv("GEMINI_API_KEY")
 	apiURL := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey
 
 	prompt := "მოიძიე და ქართულად შეაჯამე ბოლო 1 საათის სიახლეები ევროპიდან. გამოიყენე პუნქტები (bullet points)."
