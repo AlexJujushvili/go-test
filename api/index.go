@@ -56,7 +56,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("API Error: %s\n", string(body))
+		fmt.Printf("API Error. რაღაც შეცდომა: %s\n", string(body))
 		http.Error(w, "API returned error: "+resp.Status, resp.StatusCode)
 		return
 	}
