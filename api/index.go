@@ -7,9 +7,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 )
 
-// GeminiResponse სტრუქტურა API-დან პასუხის მისაღებად
 type GeminiResponse struct {
 	Candidates []struct {
 		Content struct {
@@ -21,23 +21,20 @@ type GeminiResponse struct {
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
-	// 1. API გასაღების წაკითხვა გარემო ცვლადიდან
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
-		http.Error(w, "სერვერის შეცდომა: GEMINI_API_KEY არ არის კონფიგურირებული.", 500)
+		http.Error(w, "კონფიგურაციის შეცდომა", 500)
 		return
 	}
 
-	// 2. API URL (Gemini 2.5 Flash - შენი სიის მიხედვით)
 	apiURL := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey
 
-	// 3. მოთხოვნის მომზადება (JSON)
 	jsonData := map[string]interface{}{
 		"contents": []interface{}{
 			map[string]interface{}{
 				"parts": []interface{}{
 					map[string]interface{}{
-						"text": "მოიძიე და ქართულად შეაჯამე ბოლო 1 საათის სიახლეები ევროპიდან. გამოიყენე პუნქტები (bullet points).",
+						"text": "მოიძიე და ქართულად შეაჯამე ბოლო 1 საათის სიახლეები ევროპიდან. გამოიყენე პუნქტები. იყავი კორექტული.",
 					},
 				},
 			},
@@ -52,22 +49,18 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	jsonBytes, _ := json.Marshal(jsonData)
 	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		http.Error(w, "კავშირის შეცდომა API-სთან", 500)
+		http.Error(w, "API Error", 500)
 		return
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("API Error: %s\n", string(body))
-		http.Error(w, "Gemini API-მ დააბრუნა შეცდომა", resp.StatusCode)
-		return
-	}
-
 	var geminiResp GeminiResponse
 	json.Unmarshal(body, &geminiResp)
 
-	// 4. HTML პასუხი მობილურზე მორგებული დიზაინით
+	// მიმდინარე დრო ქართული ფორმატით
+	currentTime := time.Now().Format("15:04")
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `
 	<!DOCTYPE html>
@@ -77,64 +70,106 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>ევროპის სიახლეები</title>
 		<style>
+			:root {
+				--primary: #1a73e8;
+				--bg: #f8f9fa;
+				--card: #ffffff;
+				--text: #202124;
+				--secondary: #5f6368;
+			}
 			body { 
-				background-color: #f4f7f9; 
-				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+				background-color: var(--bg); 
+				font-family: 'Segoe UI', Roboto, Helvetica, sans-serif; 
 				margin: 0; 
-				padding: 10px; 
-				color: #333;
+				padding: 16px; 
+				color: var(--text);
+				display: flex;
+				justify-content: center;
 			}
 			.container { 
-				max-width: 600px; 
-				margin: 20px auto; 
-				background: white; 
-				padding: 20px; 
-				border-radius: 16px; 
-				box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
-				box-sizing: border-box;
+				max-width: 650px; 
+				width: 100%%; 
+				background: var(--card); 
+				padding: 24px; 
+				border-radius: 20px; 
+				box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+				animation: fadeIn 0.6s ease-out;
+			}
+			@keyframes fadeIn {
+				from { opacity: 0; transform: translateY(10px); }
+				to { opacity: 1; transform: translateY(0); }
+			}
+			.header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 20px;
+				border-bottom: 1px solid #eee;
+				padding-bottom: 15px;
 			}
 			h1 { 
-				color: #1a73e8; 
-				font-size: 1.4rem; 
-				margin-top: 0; 
-				border-bottom: 2px solid #f0f2f5;
-				padding-bottom: 12px;
-				display: flex;
-				align-items: center;
+				background: linear-gradient(45deg, #1a73e8, #8ab4f8);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				font-size: 1.6rem; 
+				margin: 0;
+			}
+			.time-badge {
+				background: #e8f0fe;
+				color: var(--primary);
+				padding: 4px 10px;
+				border-radius: 20px;
+				font-size: 0.85rem;
+				font-weight: bold;
 			}
 			.news-content { 
 				white-space: pre-wrap; 
-				font-size: 16px; 
-				line-height: 1.7; 
+				font-size: 1.05rem; 
+				line-height: 1.8; 
 				word-wrap: break-word;
 			}
-			.footer {
-				margin-top: 20px;
-				font-size: 11px;
-				color: #999;
+			/* პუნქტების (bullet points) სტილიზაცია */
+			.news-content ul { padding-left: 20px; }
+			.news-content li { margin-bottom: 10px; }
+			
+			.refresh-btn {
+				display: block;
+				width: 100%%;
 				text-align: center;
+				background: var(--primary);
+				color: white;
+				text-decoration: none;
+				padding: 12px;
+				border-radius: 12px;
+				margin-top: 25px;
+				font-weight: 500;
+				transition: background 0.3s;
 			}
+			.refresh-btn:active { background: #174ea6; }
+
 			@media (max-width: 480px) {
-				body { padding: 5px; }
-				.container { margin: 10px auto; border-radius: 12px; padding: 15px; }
-				h1 { font-size: 1.2rem; }
+				.container { padding: 20px; border-radius: 16px; }
+				h1 { font-size: 1.3rem; }
 			}
 		</style>
 	</head>
 	<body>
 		<div class="container">
-			<h1>🇪🇺 ევროპის სიახლეები</h1>
-			<div class="news-content">`)
+			<div class="header">
+				<h1>🇪🇺 ევროპა</h1>
+				<span class="time-badge">🕒 %s</span>
+			</div>
+			<div class="news-content">`, currentTime)
 
 	if len(geminiResp.Candidates) > 0 && len(geminiResp.Candidates[0].Content.Parts) > 0 {
 		fmt.Fprint(w, geminiResp.Candidates[0].Content.Parts[0].Text)
 	} else {
-		fmt.Fprint(w, "ამ წამს სიახლეები ხელმისაწვდომი არ არის.")
+		fmt.Fprint(w, "<p style='text-align:center; color:gray;'>სიახლეები ვერ მოიძებნა. სცადეთ მოგვიანებით.</p>")
 	}
 
 	fmt.Fprintf(w, `
 			</div>
-			<div class="footer">წყარო: Gemini 2.5 Flash • Real-time Search</div>
+			<a href="/" class="refresh-btn">განახლება</a>
 		</div>
 	</body>
 	</html>`)
@@ -142,7 +177,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/", Handler)
-	port := "8080"
-	fmt.Println("სერვერი ჩაირთო პორტზე :" + port)
-	http.ListenAndServe(":"+port, nil)
+	fmt.Println("სერვერი მზად არის: http://localhost:8080")
+	http.ListenAndServe(":8080", nil)
 }
